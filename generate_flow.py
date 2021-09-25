@@ -2,11 +2,12 @@
 # -*- coding: UTF-8 -*-
 import collections
 import os
-import sys
 import shutil
-import xlrd
-
+import sys
+import zipfile
 from collections import OrderedDict
+
+import xlrd
 import yaml
 
 
@@ -158,6 +159,17 @@ def handle_dir(base_dir, sheet_name):
         version_file.close()
 
 
+def make_zip(source_dir, output_filename):
+    zipf = zipfile.ZipFile(output_filename, 'w')
+    pre_len = len(os.path.dirname(source_dir))
+    for parent, dirnames, filenames in os.walk(source_dir):
+        for filename in filenames:
+            pathfile = os.path.join(parent, filename)
+            arcname = pathfile[pre_len:].strip(os.path.sep)  # 相对路径
+            zipf.write(pathfile, arcname)
+    zipf.close()
+
+
 if __name__ == '__main__':
     args = sys.argv
     if len(args) < 2:
@@ -189,3 +201,4 @@ if __name__ == '__main__':
             with open(flow_file, 'w', encoding='utf-8') as output:
                 ordered_yaml_dump(flows[f], output)
                 output.close()
+        make_zip(project_dir, project_dir + '.zip')
