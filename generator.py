@@ -7,8 +7,11 @@ import sys
 import zipfile
 from collections import OrderedDict
 
+import requests
 import xlrd
 import yaml
+
+from scheduler import login, run
 
 
 def ordered_yaml_load(yaml_path, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
@@ -160,45 +163,53 @@ def handle_dir(base_dir, sheet_name):
 
 
 def make_zip(source_dir, output_filename):
-    zipf = zipfile.ZipFile(output_filename, 'w')
+    zips = zipfile.ZipFile(output_filename, 'w')
     pre_len = len(os.path.dirname(source_dir))
     for parent, dirnames, filenames in os.walk(source_dir):
         for filename in filenames:
             pathfile = os.path.join(parent, filename)
             arcname = pathfile[pre_len:].strip(os.path.sep)  # 相对路径
-            zipf.write(pathfile, arcname)
-    zipf.close()
+            zips.write(pathfile, arcname)
+    zips.close()
 
 
-if __name__ == '__main__':
-    args = sys.argv
-    if len(args) < 2:
-        print('python generate_flow.py excel_path dir_name')
-        print('please specified the excel file path and the base directory to save flow files ')
-        sys.exit(-1)
-    excel_file = args[1]
-    if os.path.exists(excel_file) is None:
-        print(excel_file, 'is not exists')
-        sys.exit(-2)
-    save_dir = args[2]
-    if os.path.isdir(save_dir) is None:
-        print(save_dir, 'is not exists')
-        os.mkdir(save_dir)
-
-    xl = xlrd.open_workbook(excel_file)
-    flow_sheets = xl.sheet_names()
-
-    for sheet in flow_sheets:
+def generator():
+    for project in flow_sheets:
         # the sheets of list didn't to handle
         exclude_sheets = ['info', 'projects', 'config', 'scheduler']
-        if {sheet.strip()}.issubset(exclude_sheets):
+        if {project.strip()}.issubset(exclude_sheets):
             continue
-        flows = parse_flows(sheet)
-        project_dir = save_dir + os.sep + sheet
-        handle_dir(project_dir, sheet)
+        flows = parse_flows(project)
+        project_dir = save_dir + os.sep + project
+        handle_dir(project_dir, project)
         for f in flows:
             flow_file = project_dir + os.sep + f + '.flow'
             with open(flow_file, 'w', encoding='utf-8') as output:
                 ordered_yaml_dump(flows[f], output)
                 output.close()
         make_zip(project_dir, project_dir + '.zip')
+        print(project_dir + '.zip is generated')
+
+
+if __name__ == '__main__':
+    args = sys.argv
+    if len(args) < 1:
+        print('python generator.py excel_path')
+        sys.exit(-1)
+    excel_file = args[1]
+    if os.path.exists(excel_file) is None:
+        print(excel_file, 'is not exists')
+        sys.exit(-2)
+
+    requests.packages.urllib3.disable_warnings()
+    xl = xlrd.open_workbook(excel_file)
+    flow_sheets = xl.sheet_names()
+    azkaban_url, s, save_dir = login(xl)
+    if save_dir.endswith(os.sep):
+        save_dir = save_dir[:-1]
+    if os.path.isdir(save_dir) is None:
+        print(save_dir, 'is not exists')
+        os.mkdir(save_dir)
+
+    generator()
+    run(xl)
