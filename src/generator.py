@@ -11,7 +11,7 @@ import requests
 import xlrd
 import yaml
 
-from scheduler import login, run
+from scheduler import login, fetch_schedule_id, schedule, run_upload
 
 
 def ordered_yaml_load(yaml_path, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
@@ -108,7 +108,10 @@ def parse_flow_config(flow, i, line):
             cp = conf.strip().split('=')
             if cp == '':
                 pass
-            config[cp[0]] = cp[1]
+            try:
+                config[cp[0]] = cp[1]
+            except IndexError:
+                print("flow configs error:", i, line[3], cp)
     else:
         print('location the ' + str(i) + 'th row: flow_configs is null ')
     return config
@@ -211,5 +214,7 @@ if __name__ == '__main__':
         print(save_dir, 'is not exists')
         os.mkdir(save_dir)
 
-    generator()
-    run(xl)
+    #generator()
+    #run_upload(xl)
+    schedule(xl, azkaban_url, s)
+    s.close()

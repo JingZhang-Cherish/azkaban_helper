@@ -11,10 +11,10 @@ DOWNLOAD_URL = 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml.git'
 LICENSE = 'MIT Licence'
 VERSION = 'v0.1-incubating'
 
-install_reqs = ['requests~=2.26.0',
+install_reqs = ['requests~=2.25.1',
                 'xlrd~=1.2.0',
                 'PyYAML~=5.4.1',
-                'setuptools~=58.1.0']
+                'setuptools~=51.0.0']
 
 setup(
     name=NAME,
