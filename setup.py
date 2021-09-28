@@ -1,7 +1,7 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 DESCRIPTION = 'Azkaban Flow Generator'
-LONG_DESCRIPTION = open('README.md').read()
+LONG_DESCRIPTION = open('README.md', encoding='UTF-8').read()
 NAME = "azkaban-helper"
 AUTHOR = "Jing Zhang"
 AUTHOR_EMAIL = 'cherish244612023@gmail.com'
@@ -9,7 +9,7 @@ MAINTAINER = "Jing Zhang"
 MAINTAINER_EMAIL = 'cherish244612023@gmail.com'
 DOWNLOAD_URL = 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml.git'
 LICENSE = 'MIT Licence'
-VERSION = '0.0.2'
+VERSION = '0.0.5'
 
 install_reqs = ['requests~=2.25.1',
                 'xlrd~=1.2.0',
@@ -29,6 +29,7 @@ setup(
     maintainer_email=MAINTAINER_EMAIL,
     license=LICENSE,
     include_package_data=True,
+    long_description_content_type='text/markdown',
     classifiers=[
         # 发展时期,常见的如下
         #   3 - Alpha
@@ -51,11 +52,15 @@ setup(
         'Programming Language :: Python :: 3.9',
     ],
     install_requires=install_reqs,
-    python_requires='>=3, <=3.9',
+    python_requires='>=3, <=3.10',
     entry_points={
         'console_scripts': [
             'azkaban_helper = src.generator:main'
         ]
     },
-    platforms=['MAC OS', 'Windows', 'Linux', 'Unix']
+    platforms=[
+        'Operating System :: MacOS :: MacOS X',
+        'Operating System :: Microsoft :: Windows',
+        'Operating System :: POSIX',
+    ]
 )
