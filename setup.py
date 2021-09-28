@@ -13,7 +13,8 @@ VERSION = '0.0.2'
 
 install_reqs = ['requests~=2.25.1',
                 'xlrd~=1.2.0',
-                'PyYAML~=5.4.1']
+                'PyYAML~=5.4.1',
+                'requests-toolbelt~=0.9.1']
 
 setup(
     name=NAME,
@@ -53,7 +54,7 @@ setup(
     python_requires='>=3, <=3.9',
     entry_points={
         'console_scripts': [
-            'azkaban_helper = src.start'
+            'azkaban_helper = src.generator:main'
         ]
     },
     platforms=['MAC OS', 'Windows', 'Linux', 'Unix']
