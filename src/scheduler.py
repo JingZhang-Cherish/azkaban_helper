@@ -10,8 +10,8 @@ HEADERS = {'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-Wit
 def login(excel):
     config_sheet = excel.sheet_by_name('config')
     url = config_sheet.cell_value(1, 0).strip()
-    if not url.endswith(os.sep):
-        url.append(os.sep)
+    if not url.endswith('/'):
+        url = url + '/'
     username = config_sheet.cell_value(1, 1).strip()
     password = config_sheet.cell_value(1, 2).strip()
     base_dir = config_sheet.cell_value(1, 3).strip()
