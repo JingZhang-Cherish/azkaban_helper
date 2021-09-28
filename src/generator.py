@@ -69,9 +69,9 @@ parse jobs and flows from excel
 '''
 
 
-def parse_flows(sheet_name):
+def parse_flows(excel,sheet_name):
     flow_list = collections.OrderedDict()
-    sheet1 = xl.sheet_by_name(sheet_name)
+    sheet1 = excel.sheet_by_name(sheet_name)
     for i in range(1, sheet1.nrows):
         line = sheet1.row_values(i)
         if len(line) == 0:
@@ -176,13 +176,13 @@ def make_zip(source_dir, output_filename):
     zips.close()
 
 
-def generator():
+def generator(excel,flow_sheets, save_dir):
     for project in flow_sheets:
         # the sheets of list didn't to handle
         exclude_sheets = ['info', 'projects', 'config', 'scheduler']
         if {project.strip()}.issubset(exclude_sheets):
             continue
-        flows = parse_flows(project)
+        flows = parse_flows(excel,project)
         project_dir = save_dir + os.sep + project
         handle_dir(project_dir, project)
         for f in flows:
@@ -192,29 +192,3 @@ def generator():
                 output.close()
         make_zip(project_dir, project_dir + '.zip')
         print(project_dir + '.zip is generated')
-
-
-if __name__ == '__main__':
-    args = sys.argv
-    if len(args) < 1:
-        print('python generator.py excel_path')
-        sys.exit(-1)
-    excel_file = args[1]
-    if os.path.exists(excel_file) is None:
-        print(excel_file, 'is not exists')
-        sys.exit(-2)
-
-    requests.packages.urllib3.disable_warnings()
-    xl = xlrd.open_workbook(excel_file)
-    flow_sheets = xl.sheet_names()
-    azkaban_url, s, save_dir = login(xl)
-    if save_dir.endswith(os.sep):
-        save_dir = save_dir[:-1]
-    if os.path.isdir(save_dir) is None:
-        print(save_dir, 'is not exists')
-        os.mkdir(save_dir)
-
-    #generator()
-    #run_upload(xl)
-    schedule(xl, azkaban_url, s)
-    s.close()
