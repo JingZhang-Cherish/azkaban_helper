@@ -398,33 +398,6 @@ def get_valid_projects(xl):
     return all_sheets
 
 
-def main():
-    args = sys.argv[1:0]
-    if len(args) < 2:
-        print('please specified a excel file path')
-        sys.exit(-1)
-    excel_file = args[0]
-    if not os.path.exists(excel_file):
-        print(excel_file, 'is not exists')
-        sys.exit(-2)
-    requests.packages.urllib3.disable_warnings()
-    xl = xlrd.open_workbook(excel_file)
-    valid_sheets = get_valid_projects(xl)
-
-    azkaban_url, s, save_dir = login(xl)
-    if save_dir.endswith(os.sep):
-        save_dir = save_dir[:-1]
-    if not os.path.isdir(save_dir):
-        print(save_dir, 'is not exists,auto create it')
-        os.mkdir(save_dir)
-
-    generator(xl, valid_sheets, save_dir)
-    pro_map = create_project(xl, azkaban_url, s)
-    run_upload(azkaban_url, s, valid_sheets, save_dir)
-    schedule(xl, azkaban_url, s, pro_map)
-    s.close()
-
-
 def usage():
     print('''Usage: azkaban_helper [-h|-g|-c|-z|-u|-o|-s] [--help|--generate|--create|--zip|--upload|--output dirname|--schedule] excel_file
              -g|--generate generate flows of project,no zip and other operators
@@ -475,6 +448,34 @@ def handle_args():
         '=%s\nschedule_only=%s\nexcel_file   =%s'
         '\n========================'
         % (generate_only, create_only, zip_only, upload_only, output_dir, schedule_only, excel_file))
+    return generate_only, create_only, zip_only, upload_only, output_dir, schedule_only, excel_file
+
+
+def main():
+    args = sys.argv[1:0]
+    if len(args) < 2:
+        print('please specified a excel file path')
+        sys.exit(-1)
+    excel_file = args[0]
+    if not os.path.exists(excel_file):
+        print(excel_file, 'is not exists')
+        sys.exit(-2)
+    requests.packages.urllib3.disable_warnings()
+    xl = xlrd.open_workbook(excel_file)
+    valid_sheets = get_valid_projects(xl)
+
+    azkaban_url, s, save_dir = login(xl)
+    if save_dir.endswith(os.sep):
+        save_dir = save_dir[:-1]
+    if not os.path.isdir(save_dir):
+        print(save_dir, 'is not exists,auto create it')
+        os.mkdir(save_dir)
+
+    generator(xl, valid_sheets, save_dir)
+    pro_map = create_project(xl, azkaban_url, s)
+    run_upload(azkaban_url, s, valid_sheets, save_dir)
+    schedule(xl, azkaban_url, s, pro_map)
+    s.close()
 
 
 if __name__ == '__main__':
