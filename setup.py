@@ -8,7 +8,7 @@ AUTHOR_EMAIL = 'cherish244612023@gmail.com'
 MAINTAINER = "Jing Zhang"
 MAINTAINER_EMAIL = 'cherish244612023@gmail.com'
 DOWNLOAD_URL = 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml.git'
-LICENSE = 'MIT Licence'
+LICENSE = 'MIT License'
 VERSION = '0.0.5'
 
 install_reqs = ['requests~=2.25.1',
@@ -29,7 +29,13 @@ setup(
     maintainer_email=MAINTAINER_EMAIL,
     license=LICENSE,
     include_package_data=True,
+    keywords='azkaban config flows',
     long_description_content_type='text/markdown',
+    project_urls={
+        'Documentation': 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml/blob/master/README.md',
+        'Source': 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml.git',
+        'PyPi': 'https://pypi.org/project/azkaban-helper/',
+    },
     classifiers=[
         # 发展时期,常见的如下
         #   3 - Alpha
