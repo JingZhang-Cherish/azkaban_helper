@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 import collections
+import getopt
 import os
 import shutil
 import sys
@@ -10,6 +11,9 @@ from collections import OrderedDict
 import requests
 import xlrd
 import yaml
+
+default_sheets = ['info', 'projects', 'config', 'scheduler']
+HEADERS = {'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest'}
 
 
 def ordered_yaml_load(yaml_path, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
@@ -177,9 +181,6 @@ def make_zip(source_dir, output_filename):
 def generator(excel, flow_sheets, save_dir):
     for project in flow_sheets:
         # the sheets of list didn't to handle
-        exclude_sheets = ['info', 'projects', 'config', 'scheduler']
-        if {project.strip()}.issubset(exclude_sheets):
-            continue
         flows = parse_flows(excel, project)
         project_dir = save_dir + os.sep + project
         handle_dir(project_dir, project)
@@ -190,9 +191,6 @@ def generator(excel, flow_sheets, save_dir):
                 output.close()
         make_zip(project_dir, project_dir + '.zip')
         print(project_dir + '.zip is generated')
-
-
-HEADERS = {'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest'}
 
 
 def login(excel):
@@ -225,7 +223,8 @@ def create_project(excel, url, session):
     p_ids = {}
     for r in range(1, ps.nrows):
         p_name = ps.cell_value(r, 0)
-        if p_name == '':
+        enable = ps.cell_value(r, 2)
+        if (not enable) or p_name == '':
             continue
         p_desc = ps.cell_value(r, 1)
         if p_desc == '':
@@ -241,11 +240,12 @@ def create_project(excel, url, session):
         if response.raise_for_status():
             raise Exception("request failed")
         else:
-            print("create project %s %s response: %s" % (p_name, p_desc, response.json()))
+            print("create project %s -->description: %s response: %s" % (p_name, p_desc, response.json()))
             status = response.json().get('status')
-            if status is None:
+            if not status:
                 raise Exception(response.json().get('error'))
         p_ids[p_name] = fetch_projects_id(url, session, p_name)
+    print('project_name -> project_id:', p_ids)
     return p_ids
 
 
@@ -345,73 +345,136 @@ def fetch_schedule_id(url, session, project_id, flow_name):
     return None
 
 
-def schedule(excel, url, session):
-    maps = create_project(excel, url, session)
+'''
+Which flow was scheduled must be enable in scheduler and the owner of the flow must be enable also.
+'''
+
+
+def schedule(excel, url, session, maps):
     schedule_sheet = excel.sheet_by_name('scheduler')
     for row in range(1, schedule_sheet.nrows):
         project_name = schedule_sheet.cell_value(row, 0).strip()
-        global project_ids
         flow_name = schedule_sheet.cell_value(row, 1).strip()
         cron = schedule_sheet.cell_value(row, 2).strip()
         enable = schedule_sheet.cell_value(row, 3)
         if project_name == '' or flow_name == '':
             continue
         if project_name != '' and flow_name != '':
-            if cron != '' and enable:
+            if cron != '' and enable and maps.get(project_name, None):
                 schedule_flow(url, session, project_name, flow_name, cron)
             else:
-                schedule_id = fetch_schedule_id(url, session, maps[project_name], flow_name)
-                if schedule_id:
-                    remove_schedule(url, session, schedule_id)
+                if maps.get(project_name, None):
+                    schedule_id = fetch_schedule_id(url, session, maps[project_name], flow_name)
+                    if schedule_id:
+                        remove_schedule(url, session, schedule_id)
 
 
 '''
-the sheets that exits in projects list. 
+The project must be enabled before create and upload 
 In other words ,the project has configure at a single sheet
 '''
 
 
-def valid_project(xl):
-    valid_projects = []
-    for project in xl.sheet_names():
-        # the sheets of list didn't to handle
-        exclude_sheets = ['info', 'projects', 'config', 'scheduler']
-        if not {project.strip()}.issubset(exclude_sheets):
-            valid_projects.append(project.strip())
-    return valid_projects
-
-
-def run_upload(xl):
+def run_upload(url, session, projects, b_dir):
     requests.packages.urllib3.disable_warnings()
-    azkaban_url, s, b_dir = login(xl)
-    create_project(xl, azkaban_url, s)
-    configured_projects = valid_project(xl)
-    for p in configured_projects:
-        upload_project(azkaban_url, s, b_dir, p)
+    for p in projects:
+        upload_project(url, session, b_dir, p)
+
+
+'''
+exclude project which enable column is False and default_sheet 
+'''
+
+
+def get_valid_projects(xl):
+    all_sheets = xl.sheet_names()
+    for default_sheet in default_sheets:
+        all_sheets.remove(default_sheet)
+    projects_sheet = xl.sheet_by_name('projects')
+    for x in range(1, projects_sheet.nrows):
+        project_name = projects_sheet.cell_value(x, 0)
+        if (not projects_sheet.cell_value(x, 2)) and all_sheets.__contains__(project_name):
+            all_sheets.remove(project_name)
+    return all_sheets
 
 
 def main():
-    args = sys.argv
+    args = sys.argv[1:0]
     if len(args) < 2:
-        print('python generator.py excel_path')
+        print('please specified a excel file path')
         sys.exit(-1)
-    excel_file = args[1]
-    if os.path.exists(excel_file) is None:
+    excel_file = args[0]
+    if not os.path.exists(excel_file):
         print(excel_file, 'is not exists')
         sys.exit(-2)
     requests.packages.urllib3.disable_warnings()
     xl = xlrd.open_workbook(excel_file)
-    flow_sheets = xl.sheet_names()
+    valid_sheets = get_valid_projects(xl)
+
     azkaban_url, s, save_dir = login(xl)
     if save_dir.endswith(os.sep):
         save_dir = save_dir[:-1]
-    if os.path.isdir(save_dir) is None:
-        print(save_dir, 'is not exists')
+    if not os.path.isdir(save_dir):
+        print(save_dir, 'is not exists,auto create it')
         os.mkdir(save_dir)
-    generator(xl, flow_sheets, save_dir)
-    run_upload(xl)
-    schedule(xl, azkaban_url, s)
+
+    generator(xl, valid_sheets, save_dir)
+    pro_map = create_project(xl, azkaban_url, s)
+    run_upload(azkaban_url, s, valid_sheets, save_dir)
+    schedule(xl, azkaban_url, s, pro_map)
     s.close()
+
+
+def usage():
+    print('''Usage: azkaban_helper [-h|-g|-c|-z|-u|-o|-s] [--help|--generate|--create|--zip|--upload|--output dirname|--schedule] excel_file
+             -g|--generate generate flows of project,no zip and other operators
+             -c|--create   create projects at azkaban
+             -z|--zip      create and zip project as project.zip to output directory  
+             -u|--upload   upload zip file to azkaban server, it will attempt create project before upload
+             -o|--output   if you want to custom specified the output directory,add it.Default is current directory.
+             -s|--schedule if you just only want to modify a flows scheduler but not modify flow's content,use it
+             excel_file    flow's configuration file must be specified     
+
+             default:  execute all the steps above.
+          ''')
+
+
+def handle_args():
+    generate_only, create_only, zip_only, upload_only, schedule_only = False, False, False, False, False
+    output_dir = os.getcwd()
+    excel_file = None
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], 'hgczuo:s',
+                                   ['help', 'generate', 'create', 'zip', 'upload', 'output=', 'schedule'])
+        excel_file = args[0]
+        if not excel_file:
+            usage()
+            print("Excel file is Required!!!")
+            sys.exit(-1)
+        for o, a in opts:
+            if o in ('-h', '--help'):
+                usage()
+                sys.exit()
+            if o in ('-g', '--generate'):
+                generate_only = True
+            if o in ('-c', '--create'):
+                create_only = True
+            if o in ('-z', '--zip'):
+                zip_only = True
+            if o in ('-u', '--upload'):
+                upload_only = True
+            if o in ('-o', '--output'):
+                output_dir = a
+            if o in ('-s', '--schedule'):
+                schedule_only = True
+    except getopt.GetoptError:
+        usage()
+    print(
+        '========================\n'
+        'generate_only=%s\ncreate_only  =%s\nzip_only     =%s\nupload_only  =%s\noutput_dir   '
+        '=%s\nschedule_only=%s\nexcel_file   =%s'
+        '\n========================'
+        % (generate_only, create_only, zip_only, upload_only, output_dir, schedule_only, excel_file))
 
 
 if __name__ == '__main__':

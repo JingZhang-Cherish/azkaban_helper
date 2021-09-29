@@ -42,23 +42,17 @@ setup(
         #   4 - Beta
         #   5 - Production/Stable
         'Development Status :: 4 - Beta',
-
-        # 开发的目标用户
         'Intended Audience :: Developers',
         'Environment :: Console',
-
-        # 属于什么类型
         'Topic :: Software Development :: Build Tools',
-
         # 许可证信息
         'License :: OSI Approved :: MIT License',
-
         # 目标 Python 版本
         'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3.9',
     ],
     install_requires=install_reqs,
-    python_requires='>=3, <=3.10',
+    python_requires='>=3',
     entry_points={
         'console_scripts': [
             'azkaban_helper = src.generator:main'
