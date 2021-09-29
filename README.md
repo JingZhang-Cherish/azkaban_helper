@@ -1,4 +1,12 @@
+<img  src="https://badgen.net/github/release/JingZhang-Cherish/azkaban_excel_yaml/latest/">
+<a  href="https://pypi.org/project/azkaban-helper/"><img  src="https://badgen.net/pypi/v/azkaban-helper"></a><img  src="https://badgen.net/github/commits/JingZhang-Cherish/azkaban_excel_yaml/"><img  src="https://badgen.net/github/last-commit/JingZhang-Cherish/azkaban_excel_yaml/"><img  src="https://badgen.net/github/license/JingZhang-Cherish/azkaban_excel_yaml/"><img  src="https://badgen.net/github/assets-dl/JingZhang-Cherish/azkaban_excel_yaml/">
+
+
+<style> a { text-decoration:none} </style> 
+<p><a href="https://github.com/JingZhang-Cherish/azkaban_excel_yaml/blob/master/README-zh.md"    >中文文档 </a>
+|<a href="https://github.com/JingZhang-Cherish/azkaban_excel_yaml/blob/master/README-zh">English Docs</a></p>
 # Azkaban Config Tool
+
 
 ​		According to the job flow content configured in Excel, a YAML configuration file is generated, packaged and uploaded to the specified AzkabanServer, and job flow scheduling is configured.
 
