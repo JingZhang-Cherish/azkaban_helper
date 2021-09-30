@@ -102,13 +102,15 @@ For more details on Excel configuration, see Configuration
 5. Command Invoke:  
 
    ```text
-   Usage: azkaban_helper [-h|-g|-c|-z|-u|-o|-s] [--help|--generate|--create|--zip|--upload|--output dirname|--schedule] excel_file
-                -g|--generate generate flows of project,no zip and other operators
-                -c|--create   create projects at azkaban
-                -u|--upload   upload zip file to azkaban server, it will attempt create project before upload
-                -s|--schedule if you just only want to modify a flows scheduler but not modify flow's content,use it
-                excel_file    flow's configuration file must be specified     
+   Usage: azkaban_helper [options] excel_file
+   Options:
+      -g|--generate   generate flows of project,no zip and other operators
+      -c|--create     create projects at azkaban
+      -u|--upload     upload zip file to azkaban server, it will attempt create project before upload
+      -s|--schedule   if you just only want to modify a flows scheduler but not modify flow's content,use it
+         excel_file   flow's configuration file must be specified     
    
+   default behavior is executes all the steps above. 
    ```
 
    
