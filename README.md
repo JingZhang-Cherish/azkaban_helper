@@ -1,4 +1,4 @@
-<p align="center"><img  src="https://badgen.net/github/release/JingZhang-Cherish/azkaban_excel_yaml/latest/"><a  href="https://pypi.org/project/azkaban-helper/"><img  src="https://badgen.net/pypi/v/azkaban-helper"></a><img  src="https://badgen.net/github/commits/JingZhang-Cherish/azkaban_excel_yaml/"><img  src="https://badgen.net/github/assets-dl/JingZhang-Cherish/azkaban_excel_yaml/"><img  src="https://badgen.net/github/commits/JingZhang-Cherish/azkaban_excel_yaml/"></p>
+<p align="center"><img  src="https://badgen.net/github/release/JingZhang-Cherish/azkaban_excel_yaml/latest/"><a  href="https://pypi.org/project/azkaban-helper/"><img  src="https://badgen.net/pypi/v/azkaban-helper"></a><img  src="https://badgen.net/github/commits/JingZhang-Cherish/azkaban_excel_yaml/"><img  src="https://badgen.net/github/assets-dl/JingZhang-Cherish/azkaban_excel_yaml/"></p>
 <p align="center"><a href="https://github.com/JingZhang-Cherish/azkaban_excel_yaml/blob/master/README-zh.md">中文文档 </a>|<a href="https://github.com/JingZhang-Cherish/azkaban_excel_yaml/blob/master/README.md">English Docs</a></p>
 
 # Azkaban Config Tool
@@ -98,6 +98,18 @@ For more details on Excel configuration, see Configuration
    - If the comman parameter is flow_configs, you need to use ${param_name} to reference some built-in parameters. For details, see the Azkaban official website
 
    - In the dependOn column, the dependent job must be set before the job. Multiple dependent with ` | ` space, fore and aft don't need.
+
+5. Command Invoke:  
+
+   ```text
+   Usage: azkaban_helper [-h|-g|-c|-z|-u|-o|-s] [--help|--generate|--create|--zip|--upload|--output dirname|--schedule] excel_file
+                -g|--generate generate flows of project,no zip and other operators
+                -c|--create   create projects at azkaban
+                -u|--upload   upload zip file to azkaban server, it will attempt create project before upload
+                -s|--schedule if you just only want to modify a flows scheduler but not modify flow's content,use it
+                excel_file    flow's configuration file must be specified     
+   
+   ```
 
    
 

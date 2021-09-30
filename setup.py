@@ -29,12 +29,13 @@ setup(
     maintainer_email=MAINTAINER_EMAIL,
     license=LICENSE,
     include_package_data=True,
-    keywords='azkaban config flows',
+    keywords='azkaban config flows excel',
     long_description_content_type='text/markdown',
     project_urls={
         'Documentation': 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml/blob/master/README.md',
         'Source': 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml.git',
         'PyPi': 'https://pypi.org/project/azkaban-helper/',
+        'Chinese Docs': 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml/blob/master/README-zh.md',
     },
     classifiers=[
         # 发展时期,常见的如下
