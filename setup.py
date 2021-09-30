@@ -9,7 +9,7 @@ MAINTAINER = "Jing Zhang"
 MAINTAINER_EMAIL = 'cherish244612023@gmail.com'
 DOWNLOAD_URL = 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml.git'
 LICENSE = 'MIT License'
-VERSION = '0.0.6'
+VERSION = '0.0.7'
 
 install_reqs = ['requests~=2.25.1',
                 'xlrd~=1.2.0',

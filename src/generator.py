@@ -436,14 +436,6 @@ def handle_args():
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'hgcus',
                                    ['help', 'generate', 'create', 'upload', 'schedule'])
-        excel_file = args[0]
-        if not excel_file:
-            usage()
-            print("Excel file is Required!!!")
-            sys.exit(-1)
-        if not os.path.exists(excel_file):
-            print(excel_file, 'is not exists')
-            sys.exit(-2)
         for o, a in opts:
             if o in ('-h', '--help'):
                 usage()
@@ -456,6 +448,14 @@ def handle_args():
                 upload_only = True
             if o in ('-s', '--schedule'):
                 schedule_only = True
+        if not len(args):
+            usage()
+            print("ERROR: Excel file is Required!!!")
+            sys.exit(-1)
+        excel_file = args[0]
+        if not os.path.exists(excel_file):
+            print(excel_file, 'is not exists')
+            sys.exit(-2)
     except getopt.GetoptError:
         usage()
     print(
@@ -463,6 +463,7 @@ def handle_args():
         'generate_only=%s\ncreate_only  =%s\nupload_only  =%s\nschedule_only=%s\nexcel_file   =%s'
         '\n========================'
         % (generate_only, create_only, upload_only, schedule_only, excel_file))
+
     return generate_only, create_only, upload_only, schedule_only, excel_file
 
 
