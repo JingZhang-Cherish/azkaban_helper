@@ -80,14 +80,11 @@ def parse_flows(excel, sheet_name):
             pass
         # get a flow from flow_list
         flow = flow_list.get(line[1], collections.OrderedDict())
-        config = parse_flow_config(flow, i, line)
-        if config is not None:
+        config = parse_flow_config(sheet_name, flow, i, line)
+        if config:
             flow['config'] = config
 
-        nodes = flow.get('nodes')
-        if nodes is None:
-            nodes = []
-
+        nodes = flow.get('nodes', [])
         job = parse_job(flow, line)
         nodes.append(job)
         flow['nodes'] = nodes
@@ -97,25 +94,27 @@ def parse_flows(excel, sheet_name):
 
 
 '''
-parse flow config from excel column
+    parse flow config from excel column
 '''
 
 
-def parse_flow_config(flow, i, line):
+def parse_flow_config(sheet_name, flow, i, line):
     config = flow.get('config', collections.OrderedDict())
     if len(config) != 0:
         return config
-    if line[3] is not None:
+    if line[3]:
         for conf in line[3].strip().split('|'):
             cp = conf.strip().split('=')
-            if cp == '':
+            if not cp:
                 pass
             try:
                 config[cp[0]] = cp[1]
             except IndexError:
-                print("flow configs error:", i, line[3], cp)
+                print('location the sheet_name: %s the %d  line  has error' % (sheet_name, i + 1))
+                print("flow configs error:", i + 1, line[3])
+
     else:
-        print('location the ' + str(i) + 'th row: flow_configs is null ')
+        print('Please set the config at first row[%s->%d] of the flow!' % (sheet_name, i + 1))
     return config
 
 
@@ -130,7 +129,7 @@ def parse_job(flow, line):
     job['name'] = job_name
     job['type'] = job_type
     depend_jobs = []
-    if line[8] is not None and line[8].strip() != '':
+    if line[8] and line[8].strip() != '':
         depend_jobs = line[8].strip().split('|')
     if len(depend_jobs) != 0:
         job['dependsOn'] = depend_jobs
@@ -167,44 +166,50 @@ def handle_dir(base_dir, sheet_name):
         version_file.close()
 
 
-def make_zip(source_dir, output_filename):
-    zips = zipfile.ZipFile(output_filename, 'w')
-    pre_len = len(os.path.dirname(source_dir))
-    for parent, dirnames, filenames in os.walk(source_dir):
-        for filename in filenames:
-            pathfile = os.path.join(parent, filename)
-            arcname = pathfile[pre_len:].strip(os.path.sep)  # 相对路径
-            zips.write(pathfile, arcname)
-    zips.close()
+'''
+compress project's all files to zipfile and save it to base_dir
+'''
 
 
-def generator(excel, flow_sheets, save_dir):
+def make_zip(projects, base_dir):
+    for project in projects:
+        source_dir = base_dir + os.sep + project
+        zips = zipfile.ZipFile(source_dir + '.zip', 'w')
+        pre_len = len(os.path.dirname(source_dir))
+        for parent, dirnames, filenames in os.walk(source_dir):
+            for filename in filenames:
+                pathfile = os.path.join(parent, filename)
+                arcname = pathfile[pre_len:].strip(os.path.sep)
+                zips.write(pathfile, arcname)
+            print('compress %s successfully!' % source_dir)
+        zips.close()
+
+
+'''
+generate all flows file in base dirtory 
+'''
+
+
+def generator(excel_file, flow_sheets, save_dir):
+    excel = xlrd.open_workbook(excel_file)
     for project in flow_sheets:
-        # the sheets of list didn't to handle
         flows = parse_flows(excel, project)
         project_dir = save_dir + os.sep + project
         handle_dir(project_dir, project)
         for f in flows:
             flow_file = project_dir + os.sep + f + '.flow'
-            with open(flow_file, 'w', encoding='utf-8') as output:
-                ordered_yaml_dump(flows[f], output)
-                output.close()
-        make_zip(project_dir, project_dir + '.zip')
+            with open(flow_file, 'w', encoding='utf-8') as f_file:
+                ordered_yaml_dump(flows[f], f_file)
+                f_file.close()
         print(project_dir + '.zip is generated')
 
 
-def login(excel):
-    config_sheet = excel.sheet_by_name('config')
-    url = config_sheet.cell_value(1, 0).strip()
-    if not url.endswith('/'):
-        url = url + '/'
-    username = config_sheet.cell_value(1, 1).strip()
-    password = config_sheet.cell_value(1, 2).strip()
-    base_dir = config_sheet.cell_value(1, 3).strip()
-    if base_dir == '':
-        base_dir = os.getcwd()
-    print('Read Azkaban Connection Info From "config" sheet: url="%s", username=%s,password=%s' % (
-        url, username, password))
+'''
+Login Azkaban Server return a Session
+'''
+
+
+def login(url, username, password):
     session = requests.Session()
     data = {
         'action': 'login',
@@ -215,10 +220,16 @@ def login(excel):
     if response.raise_for_status():
         raise Exception("login azkaban failed,please check the config sheet's content")
     else:
-        return url, session, base_dir
+        return session
 
 
-def create_project(excel, url, session):
+'''
+create enabled project on Azkaban Server
+'''
+
+
+def create_project(excel_file, url, session):
+    excel = xlrd.open_workbook(excel_file)
     ps = excel.sheet_by_name('projects')
     p_ids = {}
     for r in range(1, ps.nrows):
@@ -240,11 +251,9 @@ def create_project(excel, url, session):
         if response.raise_for_status():
             raise Exception("request failed")
         else:
-            print("create project %s -->description: %s response: %s" % (p_name, p_desc, response.json()))
-            status = response.json().get('status')
-            if not status:
-                raise Exception(response.json().get('error'))
+            print("%s-->%s :%s" % (p_name, p_desc, response.json()))
         p_ids[p_name] = fetch_projects_id(url, session, p_name)
+    print("============create project Successfully!============")
     print('project_name -> project_id:', p_ids)
     return p_ids
 
@@ -294,24 +303,9 @@ def remove_schedule(url, session, schedule_id):
         print(response.json())
 
 
-def upload_project(url, session, base_dir, project):
-    from requests_toolbelt.multipart.encoder import MultipartEncoder
-    zip_file_name = project + '.zip'
-    zip_path = base_dir + os.sep + zip_file_name
-
-    upload_data = MultipartEncoder(
-        fields={
-            'ajax': 'upload',
-            'project': project,
-            'file': (zip_file_name, open(zip_path, 'rb'), 'application/zip')
-        }
-    )
-
-    response = session.post(url + 'manager', data=upload_data, headers={'Content-Type': upload_data.content_type})
-    if response.raise_for_status():
-        raise Exception("request failed")
-    else:
-        print('upload project: %s successfully! success info: %s' % (project, response.json()))
+'''
+get project_id by project_name
+'''
 
 
 def fetch_projects_id(url, session, project_name):
@@ -350,7 +344,8 @@ Which flow was scheduled must be enable in scheduler and the owner of the flow m
 '''
 
 
-def schedule(excel, url, session, maps):
+def schedule(excel_file, url, session, maps):
+    excel = xlrd.open_workbook(excel_file)
     schedule_sheet = excel.sheet_by_name('scheduler')
     for row in range(1, schedule_sheet.nrows):
         project_name = schedule_sheet.cell_value(row, 0).strip()
@@ -359,7 +354,7 @@ def schedule(excel, url, session, maps):
         enable = schedule_sheet.cell_value(row, 3)
         if project_name == '' or flow_name == '':
             continue
-        if project_name != '' and flow_name != '':
+        if project_name and flow_name:
             if cron != '' and enable and maps.get(project_name, None):
                 schedule_flow(url, session, project_name, flow_name, cron)
             else:
@@ -367,6 +362,30 @@ def schedule(excel, url, session, maps):
                     schedule_id = fetch_schedule_id(url, session, maps[project_name], flow_name)
                     if schedule_id:
                         remove_schedule(url, session, schedule_id)
+
+
+'''
+upload single project to Azkaban Server
+'''
+
+
+def upload_project(url, session, base_dir, project):
+    from requests_toolbelt.multipart.encoder import MultipartEncoder
+    zip_file_name = project + '.zip'
+    zip_path = base_dir + os.sep + zip_file_name
+
+    upload_data = MultipartEncoder(
+        fields={
+            'ajax': 'upload',
+            'project': project,
+            'file': (zip_file_name, open(zip_path, 'rb'), 'application/zip')
+        }
+    )
+    response = session.post(url + 'manager', data=upload_data, headers={'Content-Type': upload_data.content_type})
+    if response.raise_for_status():
+        raise Exception("request failed")
+    else:
+        print('upload project: %s successfully! success info: %s' % (project, response.json()))
 
 
 '''
@@ -386,7 +405,8 @@ exclude project which enable column is False and default_sheet
 '''
 
 
-def get_valid_projects(xl):
+def get_valid_projects(excel_file):
+    xl = xlrd.open_workbook(excel_file)
     all_sheets = xl.sheet_names()
     for default_sheet in default_sheets:
         all_sheets.remove(default_sheet)
@@ -402,9 +422,7 @@ def usage():
     print('''Usage: azkaban_helper [-h|-g|-c|-z|-u|-o|-s] [--help|--generate|--create|--zip|--upload|--output dirname|--schedule] excel_file
              -g|--generate generate flows of project,no zip and other operators
              -c|--create   create projects at azkaban
-             -z|--zip      create and zip project as project.zip to output directory  
              -u|--upload   upload zip file to azkaban server, it will attempt create project before upload
-             -o|--output   if you want to custom specified the output directory,add it.Default is current directory.
              -s|--schedule if you just only want to modify a flows scheduler but not modify flow's content,use it
              excel_file    flow's configuration file must be specified     
 
@@ -413,17 +431,19 @@ def usage():
 
 
 def handle_args():
-    generate_only, create_only, zip_only, upload_only, schedule_only = False, False, False, False, False
-    output_dir = os.getcwd()
-    excel_file = None
+    generate_only, create_only, upload_only, schedule_only = False, False, False, False
+    excel_file = ''
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'hgczuo:s',
-                                   ['help', 'generate', 'create', 'zip', 'upload', 'output=', 'schedule'])
+        opts, args = getopt.getopt(sys.argv[1:], 'hgcus',
+                                   ['help', 'generate', 'create', 'upload', 'schedule'])
         excel_file = args[0]
         if not excel_file:
             usage()
             print("Excel file is Required!!!")
             sys.exit(-1)
+        if not os.path.exists(excel_file):
+            print(excel_file, 'is not exists')
+            sys.exit(-2)
         for o, a in opts:
             if o in ('-h', '--help'):
                 usage()
@@ -432,50 +452,86 @@ def handle_args():
                 generate_only = True
             if o in ('-c', '--create'):
                 create_only = True
-            if o in ('-z', '--zip'):
-                zip_only = True
             if o in ('-u', '--upload'):
                 upload_only = True
-            if o in ('-o', '--output'):
-                output_dir = a
             if o in ('-s', '--schedule'):
                 schedule_only = True
     except getopt.GetoptError:
         usage()
     print(
         '========================\n'
-        'generate_only=%s\ncreate_only  =%s\nzip_only     =%s\nupload_only  =%s\noutput_dir   '
-        '=%s\nschedule_only=%s\nexcel_file   =%s'
+        'generate_only=%s\ncreate_only  =%s\nupload_only  =%s\nschedule_only=%s\nexcel_file   =%s'
         '\n========================'
-        % (generate_only, create_only, zip_only, upload_only, output_dir, schedule_only, excel_file))
-    return generate_only, create_only, zip_only, upload_only, output_dir, schedule_only, excel_file
+        % (generate_only, create_only, upload_only, schedule_only, excel_file))
+    return generate_only, create_only, upload_only, schedule_only, excel_file
+
+
+'''
+from config sheet read azkaban_url,password,username,base_dir
+'''
+
+
+def get_login_config(excel_file):
+    excel = xlrd.open_workbook(excel_file)
+    config_sheet = excel.sheet_by_name('config')
+    url = config_sheet.cell_value(1, 0).strip()
+    if not url.endswith('/'):
+        url = url + '/'
+    username = config_sheet.cell_value(1, 1).strip()
+    password = config_sheet.cell_value(1, 2).strip()
+    base_dir = config_sheet.cell_value(1, 3).strip()
+
+    if not base_dir:
+        base_dir = os.getcwd()
+    else:
+        if base_dir.endswith(os.sep):
+            base_dir = base_dir[:-1]
+    if not os.path.isdir(base_dir):
+        print(base_dir, 'is not exists,auto create it')
+        os.mkdir(base_dir)
+    print('Azkaban Connection Info: url="%s", username=%s,password=%s' % (url, username, password))
+    return url, username, password, base_dir
 
 
 def main():
-    args = sys.argv[1:0]
-    if len(args) < 2:
-        print('please specified a excel file path')
-        sys.exit(-1)
-    excel_file = args[0]
-    if not os.path.exists(excel_file):
-        print(excel_file, 'is not exists')
-        sys.exit(-2)
     requests.packages.urllib3.disable_warnings()
-    xl = xlrd.open_workbook(excel_file)
-    valid_sheets = get_valid_projects(xl)
-
-    azkaban_url, s, save_dir = login(xl)
-    if save_dir.endswith(os.sep):
-        save_dir = save_dir[:-1]
-    if not os.path.isdir(save_dir):
-        print(save_dir, 'is not exists,auto create it')
-        os.mkdir(save_dir)
-
-    generator(xl, valid_sheets, save_dir)
-    pro_map = create_project(xl, azkaban_url, s)
-    run_upload(azkaban_url, s, valid_sheets, save_dir)
-    schedule(xl, azkaban_url, s, pro_map)
-    s.close()
+    # handle args
+    generate_only, create_only, upload_only, schedule_only, excel_file = handle_args()
+    # get valid sheets
+    valid_sheets = get_valid_projects(excel_file)
+    url, username, password, save_dir = get_login_config(excel_file)
+    if generate_only:
+        generator(excel_file, valid_sheets, save_dir)
+        make_zip(valid_sheets, save_dir)
+        sys.exit()
+    if create_only:
+        session = login(url, username, password)
+        create_project(excel_file, url, session)
+        session.close()
+        sys.exit()
+    if upload_only:
+        session = login(url, username, password)
+        run_upload(url, session, valid_sheets, save_dir)
+        session.close()
+        sys.exit()
+    if schedule_only:
+        session = login(url, username, password)
+        pro_map = create_project(excel_file, url, session)
+        schedule(excel_file, url, session, pro_map)
+        session.close()
+        sys.exit()
+    generator(excel_file, valid_sheets, save_dir)
+    print("============generator projects Successfully!============")
+    make_zip(valid_sheets, save_dir)
+    print("============compress projects Successfully!============")
+    # The steps below is needed connection to Azkaban Server
+    session = login(url, username, password)
+    pro_map = create_project(excel_file, url, session)
+    run_upload(url, session, valid_sheets, save_dir)
+    print("============upload projects Successfully!============")
+    schedule(excel_file, url, session, pro_map)
+    print("============schedule flows Successfully!============")
+    session.close()
 
 
 if __name__ == '__main__':
