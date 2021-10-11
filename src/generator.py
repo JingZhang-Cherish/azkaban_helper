@@ -340,6 +340,29 @@ def fetch_schedule_id(url, session, project_id, flow_name):
 
 
 '''
+set a sla for a scheduled flow ,which configuration at scheduler sheet,kill or send email is required
+'''
+
+
+def set_sla(url, session, schedule_id, sla_emails, s):
+    email_switch, kill_switch = 'false', 'false'
+    if s[3].value:
+        email_switch = 'true'
+    if s[4].value:
+        kill_switch = 'true'
+    sets = s[0].value + ',' + s[1].value + ',' + s[2].value + ',' + email_switch + ',' + kill_switch
+    params = {
+        'ajax': 'setSla',
+        'slaEmails': sla_emails,
+        'scheduleId': schedule_id,
+        'settings[0]': sets
+    }
+    response = session.post(url + 'schedule', params=params, headers=HEADERS, verify=False)
+    if response:
+        print("set sla for scheduleId ", response.json(), schedule_id)
+
+
+'''
 Which flow was scheduled must be enable in scheduler and the owner of the flow must be enable also.
 '''
 
@@ -356,7 +379,12 @@ def schedule(excel_file, url, session, maps):
             continue
         if project_name and flow_name:
             if cron != '' and enable and maps.get(project_name, None):
-                schedule_flow(url, session, project_name, flow_name, cron)
+                sla_enable = schedule_sheet.cell_value(row, 7)
+                schedule_id = schedule_flow(url, session, project_name, flow_name, cron)
+                if sla_enable:
+                    emails = schedule_sheet.cell_value(row, 8)
+                    sla_setting = schedule_sheet.row_slice(row, 9, 14)
+                    set_sla(url, session, schedule_id, emails, sla_setting)
             else:
                 if maps.get(project_name, None):
                     schedule_id = fetch_schedule_id(url, session, maps[project_name], flow_name)
