@@ -254,7 +254,6 @@ def create_project(excel_file, url, session):
             print("%s-->%s :%s" % (p_name, p_desc, response.json()))
         p_ids[p_name] = fetch_projects_id(url, session, p_name)
     print("============create project Successfully!============")
-    print('project_name -> project_id:', p_ids)
     return p_ids
 
 

@@ -1,5 +1,5 @@
-<p align="center"><img  src="https://badgen.net/github/release/JingZhang-Cherish/azkaban_excel_yaml/latest/"><a  href="https://pypi.org/project/azkaban-helper/"><img  src="https://badgen.net/pypi/v/azkaban-helper"></a><img  src="https://badgen.net/github/commits/JingZhang-Cherish/azkaban_excel_yaml/"><img  src="https://badgen.net/github/assets-dl/JingZhang-Cherish/azkaban_excel_yaml/"></p>
-<p align="center"><a href="https://github.com/JingZhang-Cherish/azkaban_excel_yaml/blob/master/README-zh.md">中文文档 </a>|<a href="https://github.com/JingZhang-Cherish/azkaban_excel_yaml/blob/master/README.md">English Docs</a></p>
+<p align="center"><img  src="https://badgen.net/github/release/JingZhang-Cherish/azkaban_helper/latest/"><a  href="https://pypi.org/project/azkaban-helper/"><img  src="https://badgen.net/pypi/v/azkaban-helper"></a><img  src="https://badgen.net/github/commits/JingZhang-Cherish/azkaban_helper/"><img  src="https://badgen.net/github/assets-dl/JingZhang-Cherish/azkaban_helper/"></p>
+<p align="center"><a href="https://github.com/JingZhang-Cherish/azkaban_helper/blob/master/README-zh.md">中文文档 </a>|<a href="https://github.com/JingZhang-Cherish/azkaban_helper/blob/master/README.md">English Docs</a></p>
 
 # Azkaban Config Tool
 
@@ -28,7 +28,7 @@ Environmental requirements：
    - Linux/OS/Unix
 
    ```sh
-   wget -O https://github.com/JingZhang-Cherish/azkaban_excel_yaml.zip
+   wget -O https://github.com/JingZhang-Cherish/azkaban_helper.zip
    ```
 
    - Windows  User Can Download the source code from the Web page to the local PC
@@ -36,7 +36,7 @@ Environmental requirements：
    - you can also get the source by `git clone`
 
    ```sh
-   git clone https://github.com/JingZhang-Cherish/azkaban_excel_yaml.git
+   git clone https://github.com/JingZhang-Cherish/azkaban_helper.git
    ```
 
 2. Compile the source code
@@ -44,7 +44,7 @@ Environmental requirements：
    > Internet download dependencies may be required
 
    ```shell
-   cd azkaban_excel_yaml
+   cd azkaban_helper
    #Linux/OS
    python setup.py install
    #Window

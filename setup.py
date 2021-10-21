@@ -7,7 +7,7 @@ AUTHOR = "Jing Zhang"
 AUTHOR_EMAIL = 'cherish244612023@gmail.com'
 MAINTAINER = "Jing Zhang"
 MAINTAINER_EMAIL = 'cherish244612023@gmail.com'
-DOWNLOAD_URL = 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml.git'
+DOWNLOAD_URL = 'https://github.com/JingZhang-Cherish/azkaban_helper.git'
 LICENSE = 'MIT License'
 VERSION = '1.0.0'
 
@@ -32,10 +32,10 @@ setup(
     keywords='azkaban config flows excel',
     long_description_content_type='text/markdown',
     project_urls={
-        'Documentation': 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml/blob/master/README.md',
-        'Source': 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml.git',
+        'Documentation': 'https://github.com/JingZhang-Cherish/azkaban_helper/blob/master/README.md',
+        'Source': 'https://github.com/JingZhang-Cherish/azkaban_helper.git',
         'PyPi': 'https://pypi.org/project/azkaban-helper/',
-        'Chinese Docs': 'https://github.com/JingZhang-Cherish/azkaban_excel_yaml/blob/master/README-zh.md',
+        'Chinese Docs': 'https://github.com/JingZhang-Cherish/azkaban_helper/blob/master/README-zh.md',
     },
     classifiers=[
         # 发展时期,常见的如下
