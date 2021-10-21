@@ -9,7 +9,7 @@ MAINTAINER = "Jing Zhang"
 MAINTAINER_EMAIL = 'cherish244612023@gmail.com'
 DOWNLOAD_URL = 'https://github.com/JingZhang-Cherish/azkaban_helper.git'
 LICENSE = 'MIT License'
-VERSION = '1.0.0'
+VERSION = '1.0.1'
 
 install_reqs = ['requests~=2.25.1',
                 'xlrd~=1.2.0',
