@@ -489,11 +489,22 @@ def handle_args():
         usage()
     print(
         '========================\n'
-        'generate_only=%s\ncreate_only  =%s\nupload_only  =%s\nschedule_only=%s\nexcel_file   =%s'
+        ' generate_only=%s\n create_only  =%s\n upload_only  =%s\n schedule_only=%s\n excel_file   =%s'
         '\n========================'
         % (generate_only, create_only, upload_only, schedule_only, excel_file))
 
     return generate_only, create_only, upload_only, schedule_only, excel_file
+
+
+def get_urls_info(excel_file):
+    sheet = xlrd.open_workbook(excel_file)
+    url_config = sheet.sheet_by_name('config')
+    urls = []
+    for i in range(1, url_config.nrows):
+        u_conf = get_login_config(url_config, i)
+        if u_conf:
+            urls.append(u_conf)
+    return urls
 
 
 '''
@@ -501,26 +512,28 @@ from config sheet read azkaban_url,password,username,base_dir
 '''
 
 
-def get_login_config(excel_file):
-    excel = xlrd.open_workbook(excel_file)
-    config_sheet = excel.sheet_by_name('config')
-    url = config_sheet.cell_value(1, 0).strip()
-    if not url.endswith('/'):
-        url = url + '/'
-    username = config_sheet.cell_value(1, 1).strip()
-    password = config_sheet.cell_value(1, 2).strip()
-    base_dir = config_sheet.cell_value(1, 3).strip()
+def get_login_config(config_sheet, row_index):
+    # only select enable column values is True
+    enable = config_sheet.cell_value(row_index, 4)
+    if enable != 0:
+        url = config_sheet.cell_value(row_index, 0).strip()
+        if not url.endswith('/'):
+            url = url + '/'
+        username = config_sheet.cell_value(row_index, 1).strip()
+        password = config_sheet.cell_value(row_index, 2).strip()
+        base_dir = config_sheet.cell_value(row_index, 3).strip()
 
-    if not base_dir:
-        base_dir = os.getcwd()
+        if not base_dir:
+            base_dir = os.getcwd()
+        else:
+            if base_dir.endswith(os.sep):
+                base_dir = base_dir[:-1]
+        if not os.path.isdir(base_dir):
+            print(base_dir, 'it\'s not exists,auto create it')
+            os.mkdir(base_dir)
+        return url, username, password, base_dir
     else:
-        if base_dir.endswith(os.sep):
-            base_dir = base_dir[:-1]
-    if not os.path.isdir(base_dir):
-        print(base_dir, 'is not exists,auto create it')
-        os.mkdir(base_dir)
-    print('Azkaban Connection Info: url="%s", username=%s,password=%s' % (url, username, password))
-    return url, username, password, base_dir
+        return None
 
 
 def main():
@@ -529,39 +542,44 @@ def main():
     generate_only, create_only, upload_only, schedule_only, excel_file = handle_args()
     # get valid sheets
     valid_sheets = get_valid_projects(excel_file)
-    url, username, password, save_dir = get_login_config(excel_file)
-    if generate_only:
+    web_configs = get_urls_info(excel_file)
+    for w in web_configs:
+        url, username, password, save_dir = w[0], w[1], w[2], w[3]
+        print('url:'+url)
+        if generate_only:
+            generator(excel_file, valid_sheets, save_dir)
+            make_zip(valid_sheets, save_dir)
+            sys.exit()
+        if create_only:
+            session = login(url, username, password)
+            create_project(excel_file, url, session)
+            session.close()
+            sys.exit()
+        if upload_only:
+            session = login(url, username, password)
+            generator(excel_file, valid_sheets, save_dir)
+            make_zip(valid_sheets, save_dir)
+            run_upload(url, session, valid_sheets, save_dir)
+            session.close()
+            sys.exit()
+        if schedule_only:
+            session = login(url, username, password)
+            pro_map = create_project(excel_file, url, session)
+            schedule(excel_file, url, session, pro_map)
+            session.close()
+            sys.exit()
         generator(excel_file, valid_sheets, save_dir)
+        print("============generator projects Successfully!============")
         make_zip(valid_sheets, save_dir)
-        sys.exit()
-    if create_only:
-        session = login(url, username, password)
-        create_project(excel_file, url, session)
-        session.close()
-        sys.exit()
-    if upload_only:
-        session = login(url, username, password)
-        run_upload(url, session, valid_sheets, save_dir)
-        session.close()
-        sys.exit()
-    if schedule_only:
+        print("============compress projects Successfully!============")
+        # The steps below is needed connection to Azkaban Server
         session = login(url, username, password)
         pro_map = create_project(excel_file, url, session)
+        run_upload(url, session, valid_sheets, save_dir)
+        print("============upload projects Successfully!============")
         schedule(excel_file, url, session, pro_map)
+        print("============schedule flows Successfully!============")
         session.close()
-        sys.exit()
-    generator(excel_file, valid_sheets, save_dir)
-    print("============generator projects Successfully!============")
-    make_zip(valid_sheets, save_dir)
-    print("============compress projects Successfully!============")
-    # The steps below is needed connection to Azkaban Server
-    session = login(url, username, password)
-    pro_map = create_project(excel_file, url, session)
-    run_upload(url, session, valid_sheets, save_dir)
-    print("============upload projects Successfully!============")
-    schedule(excel_file, url, session, pro_map)
-    print("============schedule flows Successfully!============")
-    session.close()
 
 
 if __name__ == '__main__':
