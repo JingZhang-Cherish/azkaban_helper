@@ -12,7 +12,7 @@ import requests
 import xlrd
 import yaml
 
-default_sheets = ['info', 'projects', 'config', 'scheduler']
+default_sheets = ['info', 'projects', 'config', 'scheduler', 'trigger']
 HEADERS = {'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest'}
 
 
@@ -185,8 +185,49 @@ def make_zip(projects, base_dir):
         zips.close()
 
 
+def add_triggers(flows, excel_file, project):
+    trigger_sheet_name = 'trigger'
+    excel = xlrd.open_workbook(excel_file)
+    trigger_sheet = excel.sheet_by_name(trigger_sheet_name)
+    # flows.get('trigger', collections.OrderedDict())
+    for i in range(1, trigger_sheet.nrows):
+        rv = trigger_sheet.row_values(i)
+        enable = rv[0]
+        project_name = rv[1]
+        flow_name = rv[2]
+        if enable == 1 and project_name == project and flow_name != "":
+            flow = flows.get(flow_name)
+            if not flow:
+                pass
+            trigger = flow.get('trigger', collections.OrderedDict())
+            cron = rv[3]
+            max_wait_mins = rv[4]
+            dep_name = rv[5]
+            dep_type = rv[6]
+            params_match = rv[7]
+            params_topic = rv[8]
+            trigger['maxWaitMins'] = max_wait_mins
+            schedule_1 = trigger.get('schedule', collections.OrderedDict())
+            schedule_1['type']='cron'
+            schedule_1['value']=cron
+            trigger['schedule'] = schedule_1
+            deps = trigger.get('triggerDependencies', [])
+            dep = collections.OrderedDict()
+            params = collections.OrderedDict()
+            dep['name'] = dep_name
+            dep['type'] = dep_type
+            params['match'] = params_match
+            params['topic'] = params_topic
+            dep['params'] = params
+            deps.append(dep)
+            trigger['triggerDependencies'] = deps
+            flows[flow_name] = flow
+
+    return flows
+
+
 '''
-generate all flows file in base dirtory 
+generate all flows file in base directory 
 '''
 
 
@@ -194,6 +235,7 @@ def generator(excel_file, flow_sheets, save_dir):
     excel = xlrd.open_workbook(excel_file)
     for project in flow_sheets:
         flows = parse_flows(excel, project)
+        flows = add_triggers(flows, excel_file, project)
         project_dir = save_dir + os.sep + project
         handle_dir(project_dir, project)
         for f in flows:
@@ -545,7 +587,7 @@ def main():
     web_configs = get_urls_info(excel_file)
     for w in web_configs:
         url, username, password, save_dir = w[0], w[1], w[2], w[3]
-        print('url:'+url)
+        print('url:' + url)
         if generate_only:
             generator(excel_file, valid_sheets, save_dir)
             make_zip(valid_sheets, save_dir)
