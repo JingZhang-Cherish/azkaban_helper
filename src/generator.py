@@ -185,13 +185,51 @@ def make_zip(projects, base_dir):
         zips.close()
 
 
-def add_triggers(flows, excel_file, project):
+'''
+you can choose either schedule  or trigger,not both of them 
+'''
+
+
+def check_schedule_trigger(excel):
+    # 1 打开scheduler页，获取所有project-->flow_name的map
+    ss = excel.sheet_by_name('scheduler')
+    st = excel.sheet_by_name('trigger')
+    s_map = {}
+    for i in range(1, ss.nrows):
+        rv = ss.row_values(i)
+        if rv[3] == 1 and rv[1] != '' and rv[0] != '':
+            k = rv[0] + rv[1]
+            v = chr(66) + str(i + 1)
+            if s_map.get(k):
+                raise Exception('Duplicate workflow in scheduler: %s value: %s' % (v, rv[0] + '-' + rv[1]))
+            else:
+                s_map[k] = v
+    # 2 打开trigger页，获取所有project-->flow_name的map，check dep_name是否冲突，将冲突的部分坐标返回
+    for i in range(1, st.nrows):
+        rv = st.row_values(i)
+        if rv[0] == 1 and rv[1] != '' and rv[2] != '':
+            k1 = rv[1] + rv[2]
+            v1 = chr(67) + str(i + 1)
+            try:
+                if s_map[k1]:
+                    raise Exception('scheduler-->%s conflict with trigger-->%s  project flow: %s' % (s_map[k1], v1, k1))
+            except KeyError:
+                pass
+
+
+'''
+add trigger for some workflow by configuration in sheet named "trigger" 
+'''
+
+
+def add_triggers(flows, excel, project):
     trigger_sheet_name = 'trigger'
-    excel = xlrd.open_workbook(excel_file)
-    trigger_sheet = excel.sheet_by_name(trigger_sheet_name)
+    ts = excel.sheet_by_name(trigger_sheet_name)
     # flows.get('trigger', collections.OrderedDict())
-    for i in range(1, trigger_sheet.nrows):
-        rv = trigger_sheet.row_values(i)
+    project_name = 'default'
+    dep_list = {}
+    for i in range(1, ts.nrows):
+        rv = ts.row_values(i)
         enable = rv[0]
         project_name = rv[1]
         flow_name = rv[2]
@@ -200,27 +238,39 @@ def add_triggers(flows, excel_file, project):
             if not flow:
                 pass
             trigger = flow.get('trigger', collections.OrderedDict())
-            cron = rv[3]
-            max_wait_mins = rv[4]
-            dep_name = rv[5]
-            dep_type = rv[6]
-            params_match = rv[7]
-            params_topic = rv[8]
-            trigger['maxWaitMins'] = max_wait_mins
+            max_min = 1440
+            if rv[4]:
+                max_min = int(rv[4])
+            trigger['maxWaitMins'] = max_min
+
             schedule_1 = trigger.get('schedule', collections.OrderedDict())
-            schedule_1['type']='cron'
-            schedule_1['value']=cron
+            schedule_1['type'] = 'cron'
+            cron = "0 10 * * * ?"
+            if rv[3]:
+                cron = rv[3]
+            schedule_1['value'] = cron
             trigger['schedule'] = schedule_1
+
             deps = trigger.get('triggerDependencies', [])
             dep = collections.OrderedDict()
             params = collections.OrderedDict()
-            dep['name'] = dep_name
-            dep['type'] = dep_type
-            params['match'] = params_match
-            params['topic'] = params_topic
+            k = project_name + flow_name
+
+            dl = dep_list.get(k, [])
+            if dl.__contains__(rv[5]):
+                raise Exception("duplicate dependency:\n%d %s\n%d %s" % (i, ts.row_values(i - 1), i+1, rv))
+            else:
+                dl.append(rv[5])
+                dep_list[k] = dl
+            dep['name'] = rv[5]
+            dep['type'] = rv[6]
+            params['match'] = rv[7]
+            params['topic'] = rv[8]
             dep['params'] = params
             deps.append(dep)
+
             trigger['triggerDependencies'] = deps
+            flow['trigger'] = trigger
             flows[flow_name] = flow
 
     return flows
@@ -231,11 +281,12 @@ generate all flows file in base directory
 '''
 
 
-def generator(excel_file, flow_sheets, save_dir):
-    excel = xlrd.open_workbook(excel_file)
+def generator(excel, flow_sheets, save_dir):
+    # check trigger and schedule conflict
+    check_schedule_trigger(excel)
     for project in flow_sheets:
         flows = parse_flows(excel, project)
-        flows = add_triggers(flows, excel_file, project)
+        flows = add_triggers(flows, excel, project)
         project_dir = save_dir + os.sep + project
         handle_dir(project_dir, project)
         for f in flows:
@@ -270,16 +321,15 @@ create enabled project on Azkaban Server
 '''
 
 
-def create_project(excel_file, url, session):
-    excel = xlrd.open_workbook(excel_file)
+def create_project(excel, url, session):
     ps = excel.sheet_by_name('projects')
     p_ids = {}
     for r in range(1, ps.nrows):
-        p_name = ps.cell_value(r, 0)
-        enable = ps.cell_value(r, 2)
+        p_name = ps.cell_value(r, 1)
+        enable = ps.cell_value(r, 0)
         if (not enable) or p_name == '':
             continue
-        p_desc = ps.cell_value(r, 1)
+        p_desc = ps.cell_value(r, 2)
         if p_desc == '':
             p_desc = p_name
         params = (
@@ -408,14 +458,13 @@ Which flow was scheduled must be enable in scheduler and the owner of the flow m
 '''
 
 
-def schedule(excel_file, url, session, maps):
-    excel = xlrd.open_workbook(excel_file)
+def schedule(excel, url, session, maps):
     schedule_sheet = excel.sheet_by_name('scheduler')
     for row in range(1, schedule_sheet.nrows):
-        project_name = schedule_sheet.cell_value(row, 0).strip()
-        flow_name = schedule_sheet.cell_value(row, 1).strip()
-        cron = schedule_sheet.cell_value(row, 2).strip()
-        enable = schedule_sheet.cell_value(row, 3)
+        project_name = schedule_sheet.cell_value(row, 1).strip()
+        flow_name = schedule_sheet.cell_value(row, 2).strip()
+        cron = schedule_sheet.cell_value(row, 3).strip()
+        enable = schedule_sheet.cell_value(row, 0)
         if project_name == '' or flow_name == '':
             continue
         if project_name and flow_name:
@@ -442,7 +491,6 @@ def upload_project(url, session, base_dir, project):
     from requests_toolbelt.multipart.encoder import MultipartEncoder
     zip_file_name = project + '.zip'
     zip_path = base_dir + os.sep + zip_file_name
-
     upload_data = MultipartEncoder(
         fields={
             'ajax': 'upload',
@@ -474,8 +522,7 @@ exclude project which enable column is False and default_sheet
 '''
 
 
-def get_valid_projects(excel_file):
-    xl = xlrd.open_workbook(excel_file)
+def get_valid_projects(xl):
     all_sheets = xl.sheet_names()
     for default_sheet in default_sheets:
         all_sheets.remove(default_sheet)
@@ -538,9 +585,8 @@ def handle_args():
     return generate_only, create_only, upload_only, schedule_only, excel_file
 
 
-def get_urls_info(excel_file):
-    sheet = xlrd.open_workbook(excel_file)
-    url_config = sheet.sheet_by_name('config')
+def get_urls_info(excel):
+    url_config = excel.sheet_by_name('config')
     urls = []
     for i in range(1, url_config.nrows):
         u_conf = get_login_config(url_config, i)
@@ -556,14 +602,14 @@ from config sheet read azkaban_url,password,username,base_dir
 
 def get_login_config(config_sheet, row_index):
     # only select enable column values is True
-    enable = config_sheet.cell_value(row_index, 4)
+    enable = config_sheet.cell_value(row_index, 0)
     if enable != 0:
-        url = config_sheet.cell_value(row_index, 0).strip()
+        url = config_sheet.cell_value(row_index, 1).strip()
         if not url.endswith('/'):
             url = url + '/'
-        username = config_sheet.cell_value(row_index, 1).strip()
-        password = config_sheet.cell_value(row_index, 2).strip()
-        base_dir = config_sheet.cell_value(row_index, 3).strip()
+        username = config_sheet.cell_value(row_index, 2).strip()
+        password = config_sheet.cell_value(row_index, 3).strip()
+        base_dir = config_sheet.cell_value(row_index, 4).strip()
 
         if not base_dir:
             base_dir = os.getcwd()
@@ -582,44 +628,41 @@ def main():
     requests.packages.urllib3.disable_warnings()
     # handle args
     generate_only, create_only, upload_only, schedule_only, excel_file = handle_args()
+    excel = xlrd.open_workbook(excel_file)
     # get valid sheets
-    valid_sheets = get_valid_projects(excel_file)
-    web_configs = get_urls_info(excel_file)
+    valid_sheets = get_valid_projects(excel)
+    web_configs = get_urls_info(excel)
+    generator(excel, valid_sheets, web_configs[0][3])
+    print("============generator projects Successfully!============")
+    make_zip(valid_sheets, web_configs[0][3])
+    print("============compress projects Successfully!============")
     for w in web_configs:
         url, username, password, save_dir = w[0], w[1], w[2], w[3]
-        print('url:' + url)
         if generate_only:
-            generator(excel_file, valid_sheets, save_dir)
-            make_zip(valid_sheets, save_dir)
             sys.exit()
         if create_only:
             session = login(url, username, password)
-            create_project(excel_file, url, session)
+            create_project(excel, url, session)
             session.close()
             sys.exit()
         if upload_only:
             session = login(url, username, password)
-            generator(excel_file, valid_sheets, save_dir)
-            make_zip(valid_sheets, save_dir)
             run_upload(url, session, valid_sheets, save_dir)
             session.close()
             sys.exit()
         if schedule_only:
             session = login(url, username, password)
-            pro_map = create_project(excel_file, url, session)
-            schedule(excel_file, url, session, pro_map)
+            pro_map = create_project(excel, url, session)
+            schedule(excel, url, session, pro_map)
             session.close()
             sys.exit()
-        generator(excel_file, valid_sheets, save_dir)
-        print("============generator projects Successfully!============")
-        make_zip(valid_sheets, save_dir)
-        print("============compress projects Successfully!============")
+
         # The steps below is needed connection to Azkaban Server
         session = login(url, username, password)
-        pro_map = create_project(excel_file, url, session)
+        pro_map = create_project(excel, url, session)
         run_upload(url, session, valid_sheets, save_dir)
         print("============upload projects Successfully!============")
-        schedule(excel_file, url, session, pro_map)
+        schedule(excel, url, session, pro_map)
         print("============schedule flows Successfully!============")
         session.close()
 
