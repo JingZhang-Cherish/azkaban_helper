@@ -258,7 +258,7 @@ def add_triggers(flows, excel, project):
 
             dl = dep_list.get(k, [])
             if dl.__contains__(rv[5]):
-                raise Exception("duplicate dependency:\n%d %s\n%d %s" % (i, ts.row_values(i - 1), i+1, rv))
+                raise Exception("duplicate dependency:\n%d %s\n%d %s" % (i, ts.row_values(i - 1), i + 1, rv))
             else:
                 dl.append(rv[5])
                 dep_list[k] = dl
@@ -528,8 +528,8 @@ def get_valid_projects(xl):
         all_sheets.remove(default_sheet)
     projects_sheet = xl.sheet_by_name('projects')
     for x in range(1, projects_sheet.nrows):
-        project_name = projects_sheet.cell_value(x, 0)
-        if (not projects_sheet.cell_value(x, 2)) and all_sheets.__contains__(project_name):
+        project_name = projects_sheet.cell_value(x, 1)
+        if (not projects_sheet.cell_value(x, 0)) and all_sheets.__contains__(project_name):
             all_sheets.remove(project_name)
     return all_sheets
 
