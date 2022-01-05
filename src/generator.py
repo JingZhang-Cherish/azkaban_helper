@@ -342,8 +342,6 @@ def create_project(excel, url, session):
         response = session.post(url + 'manager', data=data, params=params, verify=False, headers=HEADERS)
         if response.raise_for_status():
             raise Exception("request failed")
-        else:
-            print("%s-->%s :%s" % (p_name, p_desc, response.json()))
         p_ids[p_name] = fetch_projects_id(url, session, p_name)
     print("============create project Successfully!============")
     return p_ids
